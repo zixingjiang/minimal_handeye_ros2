@@ -46,7 +46,7 @@ This package assumes that the _TF between the **robot base** frame and the **rob
     ```bash
     colcon build
     ```
-4. **Run the calibration node**. You can specify the calibration type, robot base frame, robot end-effector frame, camera frame, and marker frame as parameters. Please check [this table](#parameters) for more details.
+4. **Run the calibration node**. You can specify the calibration type, TF frames, calibration tolerances as parameters. Please check [this table](#parameters) for more details.
     ```bash
     source install/setup.bash
     
@@ -57,7 +57,9 @@ This package assumes that the _TF between the **robot base** frame and the **rob
       -p robot_ee_frame:=<robot_ee_frame> \
       -p camera_frame:=<camera_frame> \
       -p marker_frame:=<marker_frame> \
-      -p broadcast_tf:=true 
+      -p broadcast_tf:=true \
+      -p rotation_tolerance:=0.005 \
+      -p translation_tolerance:=0.005
     ```
 5. **Capture transformation data**. Move the robot to different poses and capture transformation data using the following `ros2service` call:
     ```bash
@@ -78,6 +80,8 @@ This package assumes that the _TF between the **robot base** frame and the **rob
 | `camera_frame` | TF frame name of the camera | `camera_frame` |
 | `marker_frame` | TF frame name of the marker  | `marker_frame` |
 | `broadcast_tf` | Whether to broadcast the calibration result to TF, options: `true`, `false`| `false` |
+|`rotation_tolerance`| Tolerance for the convergence of the rotation part of the calibration (quaternion coefficients) | `0.005` |
+|`translation_tolerance`| Tolerance for the convergence of the translation part of the calibration (unit: m) | `0.005` |
 
 ## Gimbal Lock
 For the roll-pitch-yaw output, when the pitch angle is &plusmn;90 degrees (approximately &plusmn;1.5707 radians), the roll and yaw angles are not unique due to the [gimbal lock](https://en.wikipedia.org/wiki/Gimbal_lock). In this case, the roll and yaw angles are set to zero to avoid ambiguity.

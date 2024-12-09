@@ -60,6 +60,10 @@ class HandEyeCalibrationNode(Node):
             description='TF frame name of the marker.'))
         self.declare_parameter('broadcast_tf', False, ParameterDescriptor(
             description='Whether to broadcast the calibration result to TF. Options: true, false (default).'))
+        self.declare_parameter('rotation_tolerance', 0.005, ParameterDescriptor(
+            description='Tolerance for the convergence of the rotation part of the calibration.'))
+        self.declare_parameter('translation_tolerance', 0.005, ParameterDescriptor(
+            description='Tolerance for the convergence of the translation part of the calibration. Unit: meters.'))
 
         self.calibration_type = self.get_parameter(
             'calibration_type').get_parameter_value().string_value
@@ -73,6 +77,10 @@ class HandEyeCalibrationNode(Node):
             'marker_frame').get_parameter_value().string_value
         self.broadcast_tf = self.get_parameter(
             'broadcast_tf').get_parameter_value().bool_value
+        self.rotation_tolerance = self.get_parameter(
+            'rotation_tolerance').get_parameter_value().double_value
+        self.translation_tolerance = self.get_parameter(
+            'translation_tolerance').get_parameter_value().double_value
 
         self.get_logger().info('Starting %s ...' % node_name)
         self.get_logger().info('Parameter calibration_type: %s' % self.calibration_type)
@@ -81,22 +89,38 @@ class HandEyeCalibrationNode(Node):
         self.get_logger().info('Parameter camera_frame: %s' % self.camera_frame)
         self.get_logger().info('Parameter marker_frame: %s' % self.marker_frame)
         self.get_logger().info('Parameter broadcast_tf: %s' % self.broadcast_tf)
+        self.get_logger().info('Parameter rotation_tolerance: %.8f' %
+                               self.rotation_tolerance)
+        self.get_logger().info('Parameter translation_tolerance: %.8f' %
+                               self.translation_tolerance)
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.static_tf_broadcaster = StaticTransformBroadcaster(self)
+        self.get_logger().info('TF2 buffer and listener initialized.')
+
+        if self.broadcast_tf:
+            self.static_tf_broadcaster = StaticTransformBroadcaster(self)
+            self.get_logger().info('Static TF broadcaster initialized.')
+        else:
+            self.static_tf_broadcaster = None
+            self.get_logger().info('Not broadcasting calibration result to TF tree.')
+
 
         # service for capturing points
         self.capture_point_counter = 0
         self.capture_point_srv = self.create_service(
             Trigger, '/calibrate', self.capture_point_srv_callback)
+        self.get_logger().info('Service /calibrate is ready.')
 
         # cache for storing data from last capture point service call
         self.capture_point_cache_A = np.zeros((4, 4))
         self.capture_point_cache_B = np.zeros((4, 4))
 
         # self-implemented hand-eye calibration solver
-        self.solver = HandEyeSolver()
+        self.solver = HandEyeSolver(
+            self.rotation_tolerance, self.translation_tolerance)
+        self.get_logger().info('Hand-eye calibration solver initialized with rotation tolerance %.8f and translation tolerance %.8f.' %
+                               (self.rotation_tolerance, self.translation_tolerance))
 
         if self.calibration_type == 'eye-to-hand':
             self.get_logger().info('Calibrating transformation from robot base (%s) to camera (%s) ...' % (

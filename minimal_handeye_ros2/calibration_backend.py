@@ -24,19 +24,24 @@
 import numpy as np
 import transforms3d as tfs3d
 
-# flags for the convergence status of the calibration
-ROTATION_AND_TRANSLATION_CONVERGED = 0
-ROTATION_CONVERGED_TRANSLATION_NOT_CONVERGED = 1
-ROTATION_NOT_CONVERGED_TRANSLATION_SKIPPED = 2
-
 
 # Hand-eye calibration solver using the rotation-then-translation method.
 # For more information, please refer to the PDF documentation:
 # https://github.com/zixingjiang/minimal_handeye_ros2/blob/jazzy/doc/handeye.pdf
 
 
+# flags for the convergence status of the calibration
+ROTATION_AND_TRANSLATION_CONVERGED = 0
+ROTATION_CONVERGED_TRANSLATION_NOT_CONVERGED = 1
+ROTATION_NOT_CONVERGED_TRANSLATION_SKIPPED = 2
+
+
 class HandEyeSolver:
-    def __init__(self):
+    def __init__(self, rotation_tolerance=0.005, translation_tolerance=0.005):
+
+        self.rotation_tolerance = rotation_tolerance
+        self.translation_tolerance = translation_tolerance
+
         self.__A_cal = np.zeros((4, 4))
         self.__B_cal = np.empty((0, 3))
         self.__c = np.empty((0, 1))
@@ -84,7 +89,8 @@ class HandEyeSolver:
 
         self.__A_cal += (Q - W).T @ (Q - W)
         q = self.__get_min_unit_eigenvector(self.__A_cal)
-        convergence = True if np.allclose(q, self.__q) else False
+        convergence = True if np.allclose(
+            q, self.__q, atol=self.rotation_tolerance) else False
         self.__q = q
 
         return convergence
@@ -104,7 +110,8 @@ class HandEyeSolver:
         self.__B_cal = np.vstack((self.__B_cal, K-np.eye(3)))
         self.__c = np.vstack((self.__c, (R @ p - p_prime).reshape(-1, 1)))
         t = np.linalg.pinv(self.__B_cal) @ self.__c
-        convergence = True if np.allclose(t, self.__t) else False
+        convergence = True if np.allclose(
+            t, self.__t, atol=self.translation_tolerance) else False
         self.__t = t
 
         return convergence
