@@ -49,8 +49,10 @@ class HandEyeSolver:
         self.__q = np.zeros(4)
         self.__t = np.zeros(3)
 
-    def calibrate(self, A: np.ndarray, B: np.ndarray) -> tuple[int, np.ndarray, np.ndarray]:
-        '''
+    def calibrate(
+        self, A: np.ndarray, B: np.ndarray
+    ) -> tuple[int, np.ndarray, np.ndarray]:
+        """
         Solve the hand-eye calibration problem using the rotation-then-translation method.
 
         :param A: 4x4 transformation matrix of calibration problem AX=XB
@@ -62,7 +64,7 @@ class HandEyeSolver:
                    - ROTATION_NOT_CONVERGED_TRANSLATION_SKIPPED
                  - The quaternion representing the rotation (q.w, q.x, q.y, q.z)
                  - The translation vector (t.x, t.y, t.z)
-        '''
+        """
 
         if self.__solve_rotation(A, B):
             if self.__solve_translation(A, B):
@@ -75,9 +77,9 @@ class HandEyeSolver:
         return status, self.__q, self.__t.flatten()
 
     def __solve_rotation(self, A, B) -> bool:
-        '''
+        """
         Solve the rotation part of the hand-eye calibration problem
-        '''
+        """
         R_A = self.__get_rotation_matrix(A)
         R_B = self.__get_rotation_matrix(B)
         v_prime = self.__get_rotation_axis(R_A)
@@ -89,16 +91,17 @@ class HandEyeSolver:
 
         self.__A_cal += (Q - W).T @ (Q - W)
         q = self.__get_min_unit_eigenvector(self.__A_cal)
-        convergence = True if np.allclose(
-            q, self.__q, atol=self.rotation_tolerance) else False
+        convergence = (
+            True if np.allclose(q, self.__q, atol=self.rotation_tolerance) else False
+        )
         self.__q = q
 
         return convergence
 
     def __solve_translation(self, A, B) -> bool:
-        '''
+        """
         Solve the translation part of the hand-eye calibration problem
-        '''
+        """
         R = tfs3d.quaternions.quat2mat(self.__q)
         R_A = self.__get_rotation_matrix(A)
         t_A = self.__get_translation_vector(A)
@@ -107,91 +110,98 @@ class HandEyeSolver:
         p = t_B
         p_prime = t_A
 
-        self.__B_cal = np.vstack((self.__B_cal, K-np.eye(3)))
+        self.__B_cal = np.vstack((self.__B_cal, K - np.eye(3)))
         self.__c = np.vstack((self.__c, (R @ p - p_prime).reshape(-1, 1)))
         t = np.linalg.pinv(self.__B_cal) @ self.__c
-        convergence = True if np.allclose(
-            t, self.__t, atol=self.translation_tolerance) else False
+        convergence = (
+            True if np.allclose(t, self.__t, atol=self.translation_tolerance) else False
+        )
         self.__t = t
 
         return convergence
 
     def __get_rotation_matrix(self, T) -> np.ndarray:
-        '''
+        """
         Get the 3x3 rotation matrix from a 4x4 transformation matrix
 
         :param T: 4x4 transformation matrix
         :return: 3x3 rotation matrix
-        '''
+        """
         return T[:3, :3]
 
     def __get_translation_vector(self, T) -> np.ndarray:
-        '''
+        """
         Get the 3x1 translation vector from a 4x4 transformation matrix
 
         :param T: 4x4 transformation matrix
         :return: 3x3 rotation matrix
-        '''
+        """
         return T[:3, 3].reshape(-1, 1)
 
     def __get_rotation_axis(self, R) -> np.ndarray:
-        '''
+        """
         Get a unnormalized rotation axis from a 3x3 rotation matrix
 
         :param R: 3x3 rotation matrix
         :return: 3x1 vector presenting the rotation axis
-        '''
-        return np.array(
-            [R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]])
+        """
+        return np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]])
 
     def __get_pure_imaginary_unit_quaternion(self, v) -> np.ndarray:
-        '''
+        """
         Get a pure imaginary unit quaternion from a 3x1 unit vector
 
         :param v: 3x1 vector
         :return: 4x1 pure imaginary quaternion (q.w, q.x, q.y, q.z)
-        '''
+        """
 
         q = np.array([0, v[0], v[1], v[2]])
 
-        return q/np.linalg.norm(q)
+        return q / np.linalg.norm(q)
 
     def __get_pre_multiplication_matrix(self, q) -> np.ndarray:
-        '''
+        """
         Get the 4x4 pre-multiplication matrix from a 4x1 vector presenting an unit quaternion
 
         :param q: 4x1 vector presenting an unit quaternion
         :return: 4x4 pre-multiplication matrix
-        '''
-        return np.array([[q[0], -q[1], -q[2], -q[3]],
-                         [q[1], q[0], -q[3], q[2]],
-                         [q[2], q[3], q[0], -q[1]],
-                         [q[3], -q[2], q[1], q[0]]])
+        """
+        return np.array(
+            [
+                [q[0], -q[1], -q[2], -q[3]],
+                [q[1], q[0], -q[3], q[2]],
+                [q[2], q[3], q[0], -q[1]],
+                [q[3], -q[2], q[1], q[0]],
+            ]
+        )
 
     def __get_post_multiplication_matrix(self, q) -> np.ndarray:
-        '''
+        """
         Get the 4x4 post-multiplication matrix from a 4x1 vector presenting an unit quaternion
 
         :param q: 4x1 vector presenting an unit quaternion
         :return: 4x4 pre-multiplication matrix
-        '''
-        return np.array([[q[0], -q[1], -q[2], -q[3]],
-                         [q[1], q[0], q[3], -q[2]],
-                         [q[2], -q[3], q[0], q[1]],
-                         [q[3], q[2], -q[1], q[0]]])
+        """
+        return np.array(
+            [
+                [q[0], -q[1], -q[2], -q[3]],
+                [q[1], q[0], q[3], -q[2]],
+                [q[2], -q[3], q[0], q[1]],
+                [q[3], q[2], -q[1], q[0]],
+            ]
+        )
 
     def __get_min_unit_eigenvector(self, mat) -> np.ndarray:
-        '''
+        """
         Given a matrix, find a unit eigenvector corresponding to its smallest eigenvalue.
 
         :param matrix: numpy array
         :return: Unit eigenvector corresponding to the smallest eigenvalue
-        '''
+        """
         eigenvalues, eigenvectors = np.linalg.eig(mat)
         min_index = np.argmin(eigenvalues)
         smallest_eigenvector = eigenvectors[:, min_index]
-        unit_eigenvector = smallest_eigenvector / \
-            np.linalg.norm(smallest_eigenvector)
+        unit_eigenvector = smallest_eigenvector / np.linalg.norm(smallest_eigenvector)
 
         # assume the first element of the eigenvector is positive
         if unit_eigenvector[0] < 0:
